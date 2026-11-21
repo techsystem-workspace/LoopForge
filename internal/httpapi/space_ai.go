@@ -127,7 +127,7 @@ func (h *spacesHandlers) askAI(c *gin.Context, room domain.ChatRoom, space domai
 // same requirement, artifacts, SOPs and recent discussion the members see.
 func (h *spacesHandlers) aiPrompt(room domain.ChatRoom, space domain.RequirementSpace, msg domain.ChatMessage) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "你是会话「%s」里的 AI 协作者。回答要具体、简洁，用中文；不确定就直说。\n", room.Name)
+	fmt.Fprintf(&b, "你是会话「%s」里的 AI 协作者。回答要具体、简洁，用越南语（tiếng Việt），不要用中文；不确定就直说。\n", room.Name)
 	if req := h.requirementOf(space); req != nil {
 		fmt.Fprintf(&b, "\n这个会话关联了平台需求 #%d「%s」，状态 %s，优先级 %s。\n", req.Number, req.Title, req.Status, req.Priority)
 		if issue, ok := h.repo.Issue(req.ID); ok && issue.Description != "" {

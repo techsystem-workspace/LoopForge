@@ -364,6 +364,6 @@ func clarifySystemPrompt(intro, mcpStep, focus string) string {
 - ready=true 时 summary 按「本次范围 / 不在本次范围 / 验收标准 / 假设」分段给出结论
 - 工具校验失败时修正参数并重新提交
 - TAPD 的 id、workspace_id、entry_id 必须用字符串
-- 思考用中文对用户说正在读代码或原单
+- 思考和回复都用越南语（tiếng Việt），对用户说正在读代码或原单；不要用中文
 `, intro, mcpStep, focus)
 }

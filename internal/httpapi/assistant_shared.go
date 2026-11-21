@@ -119,11 +119,18 @@ func assistantRequestApprovalMode(req assistantRequest) string {
 }
 
 func assistantSystemPromptForRequest(req assistantRequest, mode string) string {
-	if req.sopDesigner() {
-		return assistantSOPDesignerSystemPrompt
+	prompt := assistantSOPDesignerSystemPrompt
+	if !req.sopDesigner() {
+		prompt = withSpaceDeliverable(req, assistantSystemPromptForMode(mode))
 	}
-	return withSpaceDeliverable(req, assistantSystemPromptForMode(mode))
+	return prompt + "\n" + assistantLanguageDirective
 }
+
+// assistantLanguageDirective goes last so it overrides the Chinese wording of
+// the prompt above, which otherwise makes the model answer in Chinese.
+const assistantLanguageDirective = "LANGUAGE (highest priority): The instructions above are written in Chinese, but the user does not read Chinese. " +
+	"Write every user-facing reply, progress note, question, plan and draft message in Vietnamese (tiếng Việt), even where an instruction above says to use Chinese. " +
+	"Never answer in Chinese. Keep code, identifiers, tool and field names, file paths and quoted original error text unchanged."
 
 // Only approval receipts may update a shared transcript. Existing messages and
 // attribution are immutable; the optimistic timestamp prevents stale overwrites.
