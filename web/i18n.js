@@ -104,8 +104,8 @@
   const sentenceRE = sentences.length ? new RegExp(sentences.map(escape).join('|'), 'g') : null;
   const punct = [[/，/g, ', '], [/。/g, '. '], [/：/g, ': '], [/；/g, '; '], [/、/g, ', '], [/！/g, '! '], [/？/g, '? '], [/（/g, ' ('], [/）/g, ') '], [/「|」/g, '"'], [/『|』/g, '"']];
   const W = lang === 'vi'
-    ? {stage: 'Giai đoạn', round: 'Vòng', level: {高: 'Cao', 中: 'Trung bình', 低: 'Thấp'}, io: 'Vào $1 / Ra $2', total: 'tổng $2', ym: (y, m) => `Tháng ${m}/${y}`, m: m => `Tháng ${m}`, units: {次: ['lần', 'lần'], 步: ['bước', 'bước']}}
-    : {stage: 'Stage', round: 'Round', level: {高: 'High', 中: 'Medium', 低: 'Low'}, io: 'In $1 / Out $2', total: '$2 total', ym: (y, m) => `${MONTHS[m - 1] || m} ${y}`, m: m => MONTHS[m - 1] || m, units: {次: ['time', 'times'], 步: ['step', 'steps']}};
+    ? {stage: 'Giai đoạn', round: 'Vòng', level: {高: 'Cao', 中: 'Trung bình', 低: 'Thấp'}, io: 'Vào $1 / Ra $2', total: 'tổng $2', ym: (y, m) => `Tháng ${m}/${y}`, m: m => `Tháng ${m}`, units: {次: ['lần', 'lần'], 步: ['bước', 'bước']}, dur: {小时: ' giờ ', 分钟: ' phút ', 秒: ' giây'}}
+    : {stage: 'Stage', round: 'Round', level: {高: 'High', 中: 'Medium', 低: 'Low'}, io: 'In $1 / Out $2', total: '$2 total', ym: (y, m) => `${MONTHS[m - 1] || m} ${y}`, m: m => MONTHS[m - 1] || m, units: {次: ['time', 'times'], 步: ['step', 'steps']}, dur: {小时: 'h ', 分钟: 'm ', 秒: 's'}};
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const UNITS = {...W.units, 个: ['', ''], 台: ['', ''], 条: ['', '']};
   const patterns = [
@@ -123,6 +123,8 @@
       return word ? `${n} ${word}` : n;
     }],
   ];
+  // Durations go first: the dictionary would otherwise translate 小时/分钟 as words.
+  const DURATION = [/(\d+)\s*(小时|分钟|秒)/g, (_, n, u) => n + W.dur[u]];
   const cache = new Map();
 
   function translateExact(text) {
@@ -139,7 +141,8 @@
     if (Object.prototype.hasOwnProperty.call(dict, trimmed)) {
       out = text.replace(trimmed, dict[trimmed]);
     } else {
-      out = fragmentRE ? text.replace(fragmentRE, m => dict[m]) : text;
+      out = text.replace(...DURATION);
+      out = fragmentRE ? out.replace(fragmentRE, m => dict[m]) : out;
       if (sentenceRE && HAN.test(out)) out = out.replace(sentenceRE, m => dict[m]);
       for (const [re, rep] of patterns) out = out.replace(re, rep);
     }
