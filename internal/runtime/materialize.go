@@ -448,7 +448,13 @@ func mcpConfigEntries(servers []domain.MCPServerDefinition) (map[string]any, err
 			}
 		} else {
 			entry["command"] = m.Command
-			entry["args"] = m.Args
+			// Claude Code drops a stdio server whose args is null, taking the
+			// gate MCP's submit_gate_result with it; always emit an array.
+			args := m.Args
+			if args == nil {
+				args = []string{}
+			}
+			entry["args"] = args
 			if cwd := MCPRuntimeWorkingDirectory(m); cwd != "" {
 				entry["cwd"] = cwd
 			}

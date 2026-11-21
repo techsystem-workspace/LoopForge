@@ -138,3 +138,16 @@ func TestMaterializeGateMCPSelectsLinuxForDocker(t *testing.T) {
 		t.Fatalf("docker gate helper = %q, want linux artifact", raw)
 	}
 }
+
+// Claude Code ignores a stdio MCP whose args is null, so a gate server without
+// args lost submit_gate_result in every Claude run.
+func TestMCPConfigEntriesEmitStdioArgsAsArray(t *testing.T) {
+	entries, err := mcpConfigEntries([]domain.MCPServerDefinition{{ID: "agentflow-gate", Transport: "stdio", Command: "gate-mcp"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(entries)
+	if !strings.Contains(string(raw), `"args":[]`) {
+		t.Fatalf("stdio args must be an array, got %s", raw)
+	}
+}
