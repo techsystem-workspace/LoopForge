@@ -1094,7 +1094,7 @@ function obsUsageKpis(view){
   const cache=obsCacheStats(view);
   const spark=metric=>obsSpark(list.map(p=>metric==='rate'?obsTrendModeValue(p,'rate'):obsTrendValue(p,metric)).filter(v=>v!=null));
   const cum=(text)=>view.period?text:'';
-  const tokenFoot=view.inputTokens!=null?`入 ${formatTokens(view.inputTokens)} / 出 ${formatTokens(view.outputTokens)}`:(view.period?`该${obsGrainCaption()} ${formatTokens(totalTokens)}`:`累计 ${formatTokens(totalTokens)}`);
+  const tokenFoot=view.inputTokens!=null?`${lfT('入','In')} ${formatTokens(view.inputTokens)} / ${lfT('出','Out')} ${formatTokens(view.outputTokens)}`:(view.period?`该${obsGrainCaption()} ${formatTokens(totalTokens)}`:`累计 ${formatTokens(totalTokens)}`);
   const successFoot=`${succeeded} 成功 / ${failed} 失败${view.firstPass!=null?` · 一次通过 ${total?percent(view.firstPass):'—'}`:''}`;
   const costFoot='人民币 · Hy 上报 / 其他公价';
   const deltaTip=prevLabel?[`环比对象：${escapeHTML(prevLabel)}`]:[];
@@ -1551,7 +1551,7 @@ function buildObsReportHTML(){
     ['运行',summary.totalRuns||0,`${summary.activeRuns||0} 进行中`],
     ['成功率',summary.totalRuns?percent(summary.successRate):'—',`${summary.succeededRuns||0} 成功 / ${summary.failedRuns||0} 失败`],
     ['一次通过',summary.totalRuns?percent(summary.firstPassRate):'—',`${summary.reworkedRuns||0} 次返工`],
-    ['Token',formatTokens(summary.totalTokens),`入 ${formatTokens(summary.inputTokens)} / 出 ${formatTokens(summary.outputTokens)}`],
+    ['Token',formatTokens(summary.totalTokens),`${lfT('入','In')} ${formatTokens(summary.inputTokens)} / ${lfT('出','Out')} ${formatTokens(summary.outputTokens)}`],
     ['成本',obsPlain(costLabel(summary.totalCostCny,summary.costUnknownRuns===0)),summary.costUnknownRuns?`${summary.costUnknownRuns} 次未识别`:'已识别'],
     ['缓存命中',(Number(summary.inputTokens||0)+Number(summary.cacheReadTokens||0))?Number(summary.cacheHitRate||0).toFixed(0)+'%':'—',`缓存读 ${formatTokens(summary.cacheReadTokens||0)}`],
     ['P95 执行',summary.executionP95DurationMs?duration(summary.executionP95DurationMs):'—',summary.executionAverageDurationMs?`平均 ${duration(summary.executionAverageDurationMs)}`:'—'],
