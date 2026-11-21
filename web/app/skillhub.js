@@ -48,6 +48,7 @@ function skillhubCardState(item,skills){
 }
 function skillhubCount(n){
   n=Number(n)||0;
+  if(window.lfLang?.()==='en')return new Intl.NumberFormat('en',{notation:'compact',maximumFractionDigits:1}).format(n);
   if(n>=1e8)return `${+(n/1e8).toFixed(1)} 亿`;
   if(n>=1e4)return `${+(n/1e4).toFixed(1)} 万`;
   return String(n);
