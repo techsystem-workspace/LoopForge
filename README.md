@@ -62,7 +62,7 @@ Both paths track the same **requirements**, so every change, whether made in cha
 
 Ask a coding agent to "fix this bug" and the result depends on that run. It might skip the plan, forget the tests, review its own code, or stop halfway without anyone noticing. That's fine for a demo, but it isn't how a team ships.
 
-- **Repeatable.** Same SOP, same stages, same checks for every requirement. Start from built-in backend, frontend, bug-fix and product SOPs.
+- **Repeatable.** Same SOP, same stages, same checks for every requirement. Start from built-in backend, frontend, fullstack, bug-fix and product SOPs.
 - **Separated roles.** Planning, implementation, review and testing each get their own prompt, executor, model, rules, Skills and MCP tools. A role works as an SOP node or as a subagent in chat.
 - **Human on the loop.** Agents run on their own while you supervise. Pause, steer or take over anytime, and approval gates stop the run where a human must decide: approve, or send the work back to a chosen step.
 - **Observable and resumable.** Node status, tool traces, logs and artifacts in one place. Pause, retry a failed step, or rerun from any node.
@@ -178,7 +178,7 @@ Each node declares its artifacts and dependencies, and the engine starts each st
 | --- | --- |
 | **Chat workbench** | Main Bot with per-conversation executor, model and permission mode. `@` references for roles, skills, requirements, SOPs and repositories. Messages queue while a reply runs; *Steer* interrupts and sends now. Generated files open in a side panel with preview, source and download. |
 | **Conversation workspaces** | On-demand Docker sandboxes with the project's repositories checked out, project roles as native subagents, and direct control of a running SOP workspace: pause, resume or take over. |
-| **SOP designer** | Visual canvas with Agent, Script, Human gate, Sub-SOP and Preview nodes, rework-on-failure edges, validation, version history and publishing. Built-in backend, frontend, bug-fix and product SOPs. |
+| **SOP designer** | Visual canvas with Agent, Script, Human gate, Sub-SOP and Preview nodes, rework-on-failure edges, validation, version history and publishing. Built-in backend, frontend, fullstack, bug-fix and product SOPs. |
 | **Roles** | Reusable definitions: prompt, executor, model, rules, Skills, MCP tools, artifacts and gates, shared across SOP nodes and chat subagents. |
 | **Requirement → delivery** | Requirements tracked end to end, whether shipped by an SOP or straight from chat, with PR/MR status tracking, merge detection and direct-branch merges. |
 | **Runs & approvals** | Live node status, tool traces, worker logs, per-node artifact snapshots and workspace previews. A single **Needs review** inbox for every gate waiting on you. |

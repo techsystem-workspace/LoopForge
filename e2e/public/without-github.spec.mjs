@@ -70,7 +70,7 @@ test('all generic SOPs can start without a GitHub repository or token',async({pa
     await switchProject(page,projectId);
     await openSettingsPage(page,'sops');
     await page.locator('[data-scope-for="sop"] [data-scope="generic"]').click();
-    for(const id of ['generic-product-delivery','generic-backend-delivery','generic-frontend-delivery','issue-fix-production']){
+    for(const id of ['generic-product-delivery','generic-backend-delivery','generic-frontend-delivery','generic-fullstack-delivery','issue-fix-production']){
       const card=page.locator(`article.sop-card[data-generic-id="${id}"]`);
       await expect(card).toBeVisible();
       await expect(card.locator('.sop-requirements .sop-badge')).not.toHaveCount(0);
@@ -80,7 +80,7 @@ test('all generic SOPs can start without a GitHub repository or token',async({pa
     expect(clone.ok()).toBe(true);copied=true;
     // Missing model credentials may fail execution, but must never block
     // admission with repository_required or attach a Git repository.
-    for(const id of ['generic-product-delivery','generic-backend-delivery','generic-frontend-delivery','issue-fix-production',workflowId]){
+    for(const id of ['generic-product-delivery','generic-backend-delivery','generic-frontend-delivery','generic-fullstack-delivery','issue-fix-production',workflowId]){
       const created=await page.request.post('/api/runs',{data:{projectId,workflowId:id,input:'Check repository-free admission only'}});
       expect(created.status()).toBe(201);
       const run=await created.json();runId=run.id;expect(run.repositories||[]).toEqual([]);

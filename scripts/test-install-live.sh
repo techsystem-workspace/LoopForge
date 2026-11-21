@@ -89,7 +89,7 @@ def require_ids(collection, expected):
 require_ids('sandboxes', {'local','generic-docker'})
 require_ids('executors', {'codebuddy','codex','claude'})
 require_ids('projects', {'welcome'})
-require_ids('workflows', {'welcome-workflow','generic-backend-delivery','generic-frontend-delivery','generic-product-delivery','issue-fix-production'})
+require_ids('workflows', {'welcome-workflow','generic-backend-delivery','generic-frontend-delivery','generic-product-delivery','generic-fullstack-delivery','issue-fix-production'})
 run=api('POST','/api/runs',{'projectId':'welcome','workflowId':'welcome-workflow','input':'Installer acceptance'})
 run_id=run['id']
 def wait_for(status):
