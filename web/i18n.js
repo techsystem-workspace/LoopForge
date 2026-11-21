@@ -102,10 +102,10 @@
   const fragmentRE = fragments.length ? new RegExp('(?<![\\u3400-\\u9fff])(?:' + fragments.map(escape).join('|') + ')(?![\\u3400-\\u9fff])', 'g') : null;
   const sentences = fragments.filter(k => k.length >= 6 && HAN.test(k));
   const sentenceRE = sentences.length ? new RegExp(sentences.map(escape).join('|'), 'g') : null;
-  const punct = [[/，/g, ', '], [/。/g, '. '], [/：/g, ': '], [/；/g, '; '], [/、/g, ', '], [/！/g, '! '], [/？/g, '? '], [/（/g, ' ('], [/）/g, ') '], [/「|」/g, '"'], [/『|』/g, '"']];
+  const punct = [[/，/g, ', '], [/。/g, '. '], [/：/g, ': '], [/；/g, '; '], [/、/g, ', '], [/！/g, '! '], [/？/g, '? '], [/（/g, ' ('], [/）/g, ') '], [/[「『]/g, ' "'], [/[」』]/g, '" ']];
   const W = lang === 'vi'
-    ? {stage: 'Giai đoạn', round: 'Vòng', level: {高: 'Cao', 中: 'Trung bình', 低: 'Thấp'}, io: 'Vào $1 / Ra $2', total: 'tổng $2', ym: (y, m) => `Tháng ${m}/${y}`, m: m => `Tháng ${m}`, units: {次: ['lần', 'lần'], 步: ['bước', 'bước']}, dur: {小时: ' giờ ', 分钟: ' phút ', 秒: ' giây'}}
-    : {stage: 'Stage', round: 'Round', level: {高: 'High', 中: 'Medium', 低: 'Low'}, io: 'In $1 / Out $2', total: '$2 total', ym: (y, m) => `${MONTHS[m - 1] || m} ${y}`, m: m => MONTHS[m - 1] || m, units: {次: ['time', 'times'], 步: ['step', 'steps']}, dur: {小时: 'h ', 分钟: 'm ', 秒: 's'}};
+    ? {stage: 'Giai đoạn', round: 'Vòng', level: {高: 'Cao', 中: 'Trung bình', 低: 'Thấp'}, io: 'Vào $1 / Ra $2', total: 'tổng $2', ym: (y, m) => `Tháng ${m}/${y}`, m: m => `Tháng ${m}`, units: {次: ['lần', 'lần'], 步: ['bước', 'bước'], 人: ['người', 'người'], 单: ['yêu cầu', 'yêu cầu']}, dur: {小时: ' giờ ', 分钟: ' phút ', 秒: ' giây'}}
+    : {stage: 'Stage', round: 'Round', level: {高: 'High', 中: 'Medium', 低: 'Low'}, io: 'In $1 / Out $2', total: '$2 total', ym: (y, m) => `${MONTHS[m - 1] || m} ${y}`, m: m => MONTHS[m - 1] || m, units: {次: ['time', 'times'], 步: ['step', 'steps'], 人: ['person', 'people'], 单: ['issue', 'issues']}, dur: {小时: 'h ', 分钟: 'm ', 秒: 's'}};
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const UNITS = {...W.units, 个: ['', ''], 台: ['', ''], 条: ['', '']};
   const patterns = [
@@ -118,13 +118,19 @@
     [/共\s*(\d+)\s*(?=\p{L})/gu, '$1 '],
     [/^(\s*)共\s*(\d+)(\s*)$/, `$1${W.total}$3`],
     [/(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})/g, '$1 – $2'],
-    [/(\d+(?:\.\d+)?)\s*(次|步|个|台|条)(?![\u3400-\u9fff])/g, (_, n, u) => {
+    [/(\d+(?:\.\d+)?)\s*(次|步|个|台|条|人|单)(?![\u3400-\u9fff])/g, (_, n, u) => {
       const word = UNITS[u][Number(n) === 1 ? 0 : 1];
       return word ? `${n} ${word}` : n;
     }],
   ];
   // Durations go first: the dictionary would otherwise translate 小时/分钟 as words.
   const DURATION = [/(\d+)\s*(小时|分钟|秒)/g, (_, n, u) => n + W.dur[u]];
+  // "11月运行": a month label glued to the noun that follows it.
+  const MONTH_PREFIX = [/(\d{1,2})月(?=[\u3400-\u9fff])/g, (_, m) => W.m(Number(m)) + ' '];
+  // Last resort so no Chinese is left on screen: match dictionary words anywhere,
+  // even glued to other Chinese words, and space the translations apart.
+  const looseKeys = Object.keys(dict).filter(k => HAN.test(k)).sort((a, b) => b.length - a.length);
+  const looseRE = looseKeys.length ? new RegExp(looseKeys.map(escape).join('|'), 'g') : null;
   const cache = new Map();
 
   function translateExact(text) {
@@ -141,10 +147,11 @@
     if (Object.prototype.hasOwnProperty.call(dict, trimmed)) {
       out = text.replace(trimmed, dict[trimmed]);
     } else {
-      out = text.replace(...DURATION);
+      out = text.replace(...DURATION).replace(...MONTH_PREFIX);
       out = fragmentRE ? out.replace(fragmentRE, m => dict[m]) : out;
       if (sentenceRE && HAN.test(out)) out = out.replace(sentenceRE, m => dict[m]);
       for (const [re, rep] of patterns) out = out.replace(re, rep);
+      if (looseRE && HAN.test(out)) out = out.replace(looseRE, m => ` ${dict[m]} `);
     }
     if (out !== text) {
       for (const [re, rep] of punct) out = out.replace(re, rep);
