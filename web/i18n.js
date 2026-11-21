@@ -1,13 +1,16 @@
-// Runtime UI translation. The app renders Chinese copy directly; in English
-// mode this layer rewrites text nodes and a few attributes as they appear,
-// using the zh→en dictionary in i18n-en.js. Chinese mode is a no-op.
+// Runtime UI translation. The source copy is Chinese and is never shown: this
+// layer rewrites text nodes and a few attributes as they appear, using the
+// zh→vi dictionary in i18n-vi.js (Vietnamese, the default) or the zh→en
+// dictionary in i18n-en.js. Vietnamese falls back to English per key.
 (() => {
   const root = document.documentElement;
-  const lang = root.dataset.lang === 'en' ? 'en' : 'zh';
+  const norm = v => (v === 'en' ? 'en' : 'vi');
+  // 'source' (set only by test harnesses) leaves the copy untranslated.
+  const lang = root.dataset.lang === 'source' ? 'source' : norm(root.dataset.lang);
   window.lfLang = () => lang;
   window.lfSetLang = next => {
-    const value = next === 'en' ? 'en' : 'zh';
-    const current = root.dataset.lang === 'en' ? 'en' : 'zh';
+    const value = norm(next);
+    const current = norm(root.dataset.lang);
     if (value === current || root.classList.contains('lang-leaving')) return;
     try { localStorage.setItem('loopforge.lang', value); } catch { /* A blocked store keeps the previous language after reload. */ }
     const groups = [...document.querySelectorAll('.lang-switch')];
@@ -32,10 +35,11 @@
     }
     setTimeout(finish, 560);
   };
-  window.lfT = (zh, en) => (lang === 'en' ? en : zh);
+  // lfT(zh, en): Vietnamese looks the Chinese key up and falls back to English.
+  window.lfT = (zh, en) => (lang === 'source' ? zh : lang === 'en' ? en : (window.LF_I18N_VI && Object.prototype.hasOwnProperty.call(window.LF_I18N_VI, zh) ? window.LF_I18N_VI[zh] : en));
 
   function bindLangSwitch() {
-    const current = root.dataset.lang === 'en' ? 'en' : 'zh';
+    const current = norm(root.dataset.lang);
     document.querySelectorAll('.lang-switch').forEach(group => {
       group.querySelectorAll('[data-lang-value]').forEach(btn => {
         const on = btn.dataset.langValue === current;
@@ -83,15 +87,15 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startLangMotion, { once: true });
   else startLangMotion();
 
-  if (lang !== 'en') return;
+  if (lang === 'source') return;
 
-  const dict = window.LF_I18N_EN || {};
+  const dict = lang === 'vi' ? Object.assign({}, window.LF_I18N_EN, window.LF_I18N_VI) : (window.LF_I18N_EN || {});
   const HAN = /[\u3400-\u9fff\u300c\u300d\uff0c\u3002\uff1a\uff08\uff09\u3001\uff1b\uff01\uff1f]/;
   const SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'CODE', 'PRE', 'NOSCRIPT']);
   const SKIP_SEL = '[data-i18n-skip],.monaco-editor,.xterm,.log-line,.run-log,.markdown-body,[contenteditable="true"]';
   // User-authored text only gets whole-string dictionary hits, never fragment
   // rewrites, so a sentence typed by a person is not turned into mixed prose.
-  const DATA_SEL = '[data-i18n-data],.ai-user-bubble,.ai-think-body,.collab-process-body,.collab-list-item,.issue-title-cell b,#issueDetailTitle,.detail-desc,.comment-row p';
+  const DATA_SEL = '[data-i18n-data],.ai-user-bubble,.ai-think-body,.collab-process-body,.collab-list-item,.issue-title-cell b,#issueDetailTitle,.detail-desc,.comment-row p,.message-body,.user-bubble,.reply-trace-text,.node-message,.sop-designer-message,.queued-message-text,.artifact-panel-content,.session-link > span:first-child,.session-project-tag:not(.session-source-tag)';
   const ATTRS = ['placeholder', 'title', 'aria-label', 'data-tip', 'data-tooltip'];
   const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const fragments = Object.keys(dict).filter(k => k.length > 1).sort((a, b) => b.length - a.length);
@@ -99,17 +103,20 @@
   const sentences = fragments.filter(k => k.length >= 6 && HAN.test(k));
   const sentenceRE = sentences.length ? new RegExp(sentences.map(escape).join('|'), 'g') : null;
   const punct = [[/，/g, ', '], [/。/g, '. '], [/：/g, ': '], [/；/g, '; '], [/、/g, ', '], [/！/g, '! '], [/？/g, '? '], [/（/g, ' ('], [/）/g, ') '], [/「|」/g, '"'], [/『|』/g, '"']];
+  const W = lang === 'vi'
+    ? {stage: 'Giai đoạn', round: 'Vòng', level: {高: 'Cao', 中: 'Trung bình', 低: 'Thấp'}, io: 'Vào $1 / Ra $2', total: 'tổng $2', ym: (y, m) => `Tháng ${m}/${y}`, m: m => `Tháng ${m}`, units: {次: ['lần', 'lần'], 步: ['bước', 'bước']}}
+    : {stage: 'Stage', round: 'Round', level: {高: 'High', 中: 'Medium', 低: 'Low'}, io: 'In $1 / Out $2', total: '$2 total', ym: (y, m) => `${MONTHS[m - 1] || m} ${y}`, m: m => MONTHS[m - 1] || m, units: {次: ['time', 'times'], 步: ['step', 'steps']}};
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const UNITS = {次: ['time', 'times'], 步: ['step', 'steps'], 个: ['', ''], 台: ['', ''], 条: ['', '']};
+  const UNITS = {...W.units, 个: ['', ''], 台: ['', ''], 条: ['', '']};
   const patterns = [
-    [/第\s*(\d+)\s*(?:阶段|Stage)/g, 'Stage $1'],
-    [/第\s*(\d+)\s*(?:轮|Round)/g, 'Round $1'],
-    [/ · (高|中|低) · /g, (_, p) => ` · ${{高: 'High', 中: 'Medium', 低: 'Low'}[p]} · `],
-    [/入\s*(\d+)\s*\/\s*出\s*(\d+)/g, 'In $1 / Out $2'],
-    [/(\d{4})年(\d{1,2})月/g, (_, y, m) => `${MONTHS[m - 1] || m} ${y}`],
-    [/(^|[^\d])(\d{1,2})月(?![\u3400-\u9fff])/g, (_, pre, m) => pre + (MONTHS[m - 1] || m)],
-    [/共\s*(\d+)\s*(?=[A-Za-z])/g, '$1 '],
-    [/^(\s*)共\s*(\d+)(\s*)$/, '$1$2 total$3'],
+    [/第\s*(\d+)\s*(?:阶段|Stage)/g, `${W.stage} $1`],
+    [/第\s*(\d+)\s*(?:轮|Round)/g, `${W.round} $1`],
+    [/ · (高|中|低) · /g, (_, p) => ` · ${W.level[p]} · `],
+    [/入\s*(\d+)\s*\/\s*出\s*(\d+)/g, W.io],
+    [/(\d{4})年(\d{1,2})月/g, (_, y, m) => W.ym(y, Number(m))],
+    [/(^|[^\d])(\d{1,2})月(?![\u3400-\u9fff])/g, (_, pre, m) => pre + W.m(Number(m))],
+    [/共\s*(\d+)\s*(?=\p{L})/gu, '$1 '],
+    [/^(\s*)共\s*(\d+)(\s*)$/, `$1${W.total}$3`],
     [/(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})/g, '$1 – $2'],
     [/(\d+(?:\.\d+)?)\s*(次|步|个|台|条)(?![\u3400-\u9fff])/g, (_, n, u) => {
       const word = UNITS[u][Number(n) === 1 ? 0 : 1];

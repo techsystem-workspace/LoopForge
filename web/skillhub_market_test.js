@@ -88,7 +88,7 @@ reset();
 const evil = { slug: 'x"><img src=x onerror=alert(1)>', name: '<script>alert(1)</script>', description: '<img src=x>', version: '1.0.0', ownerName: '<b>o</b>', downloads: 98000, stars: 412, labels: { requires_api_key: 'true' } };
 let card = ctx.skillhubCardHTML(evil, 0);
 assert.ok(!/<script|<img|<b>/.test(card), card);
-assert.ok(card.includes('&lt;script&gt;') && card.includes('9.8 万') && card.includes('需要 API Key'), card);
+assert.ok(card.includes('&lt;script&gt;') && /98\sN/.test(card) && card.includes('需要 API Key'), card);
 assert.ok(card.includes('data-skillhub-install="0"') && !card.includes('disabled'), 'install enabled with a project');
 ctx.state.projectFilter = '';
 card = ctx.skillhubCardHTML({ slug: 'a', name: 'A', version: '1' }, 3);

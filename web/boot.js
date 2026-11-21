@@ -3,12 +3,14 @@
 window.lfT = window.lfT || ((zh) => zh);
 (() => {
   const root = document.documentElement;
-  let lang = 'zh';
+  let lang = 'vi';
   try {
-    lang = localStorage.getItem('loopforge.lang') === 'en' ? 'en' : 'zh';
+    // 'source' keeps the untranslated copy; only test harnesses set it.
+    const stored = localStorage.getItem('loopforge.lang');
+    lang = stored === 'en' || stored === 'source' ? stored : 'vi';
   } catch (_) { /* Restricted storage still permits the default interface. */ }
   root.dataset.lang = lang;
-  root.lang = lang === 'en' ? 'en' : 'zh-CN';
+  root.lang = lang;
   try {
     if (sessionStorage.getItem('loopforge.lang.motion') === 'in') {
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) sessionStorage.removeItem('loopforge.lang.motion');

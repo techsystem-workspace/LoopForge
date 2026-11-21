@@ -233,6 +233,8 @@ export async function loadApp({ routes = [], hash = '', dispatchReady = true, or
   window.EventSource = EventSourceStub;
   window.WebSocket = WebSocketStub;
 
+  // Behaviour tests assert on the untranslated source copy.
+  window.localStorage.setItem('loopforge.lang', 'source');
   const scriptElements = [...window.document.querySelectorAll('script[src]')];
   const files = scriptElements.map((element) => {
     const src = new URL(element.getAttribute('src'), window.location.href);
