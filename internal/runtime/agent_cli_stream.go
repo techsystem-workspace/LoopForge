@@ -177,6 +177,8 @@ func NewAgentCLITranslator(kind string) func(string) []string {
 		translate = (&dshStream{}).translate
 	case AgentCLIZCode:
 		translate = (&zcodeStream{}).translate
+	case AgentCLIGrok:
+		translate = (&grokStream{}).translate
 	default:
 		return nil
 	}
@@ -877,6 +879,125 @@ func (d *dshStream) translate(s *ClaudeStream, raw map[string]any) []string {
 		if failed && text == "" {
 			if text = d.failure; text == "" {
 				text = "DeepSeek Harness 运行结束：" + stringValue(reason["kind"])
+			}
+		}
+		return append(out, s.Result(text, failed)...)
+	}
+	return out
+}
+
+// grokStream: `grok --output-format streaming-json` streams thought and text
+// deltas, ACP-style tool_call / tool_call_update events, per-step usage and a
+// final end event with the session ID and the turn's usage.
+type grokStream struct {
+	started  bool
+	segment  int
+	text     strings.Builder
+	thinking strings.Builder
+	failure  string
+}
+
+func (g *grokStream) flushThinking(s *ClaudeStream) []string {
+	text := g.thinking.String()
+	if text == "" {
+		return nil
+	}
+	g.thinking.Reset()
+	g.segment++
+	return s.Thinking(text)
+}
+
+func (g *grokStream) flushText(s *ClaudeStream) []string {
+	text := g.text.String()
+	if text == "" {
+		return nil
+	}
+	g.text.Reset()
+	g.segment++
+	return s.Text(text)
+}
+
+// grokToolOutput prefers the text Grok fed back to the model, then the
+// update's content blocks.
+func grokToolOutput(raw map[string]any) string {
+	if output, _ := raw["rawOutput"].(map[string]any); output != nil {
+		if text := stringValue(output["output_for_prompt"]); text != "" {
+			return text
+		}
+	}
+	var parts []string
+	for _, item := range sliceValue(raw["content"]) {
+		part, _ := item.(map[string]any)
+		switch stringValue(part["type"]) {
+		case "content":
+			inner, _ := part["content"].(map[string]any)
+			if text := stringValue(inner["text"]); text != "" {
+				parts = append(parts, text)
+			}
+		case "diff":
+			parts = append(parts, "edited "+stringValue(part["path"]))
+		}
+	}
+	if len(parts) == 0 {
+		return jsonText(raw["rawOutput"])
+	}
+	return strings.Join(parts, "\n")
+}
+
+func (g *grokStream) translate(s *ClaudeStream, raw map[string]any) []string {
+	var out []string
+	if !g.started {
+		g.started = true
+		out = s.Init("", "")
+	}
+	switch stringValue(raw["type"]) {
+	case "thought":
+		out = append(out, g.flushText(s)...)
+		text := stringValue(raw["data"])
+		g.thinking.WriteString(text)
+		return append(out, s.Delta(fmt.Sprintf("thinking#%d", g.segment), "thinking", text)...)
+	case "text":
+		out = append(out, g.flushThinking(s)...)
+		text := stringValue(raw["data"])
+		g.text.WriteString(text)
+		return append(out, s.Delta(fmt.Sprintf("text#%d", g.segment), "text", text)...)
+	case "tool_call":
+		out = append(append(out, g.flushThinking(s)...), g.flushText(s)...)
+		name := stringValue(raw["toolName"])
+		if name == "" {
+			name = stringValue(raw["title"])
+		}
+		input := raw["rawInput"]
+		// MCP tools go through use_tool {tool_name: "<server>__<tool>", tool_input}.
+		if args, _ := input.(map[string]any); name == "use_tool" && strings.Contains(stringValue(args["tool_name"]), "__") {
+			name, input = "mcp__"+stringValue(args["tool_name"]), args["tool_input"]
+		}
+		return append(out, s.ToolUse(stringValue(raw["toolCallId"]), name, input)...)
+	case "tool_call_update":
+		switch stringValue(raw["status"]) {
+		case "completed":
+			return append(out, s.ToolResult(stringValue(raw["toolCallId"]), false, grokToolOutput(raw))...)
+		case "failed", "cancelled":
+			return append(out, s.ToolResult(stringValue(raw["toolCallId"]), true, grokToolOutput(raw))...)
+		}
+	case "error":
+		// Grok can exit right after an error without an end event.
+		g.failure = stringValue(raw["message"])
+		out = append(append(out, g.flushThinking(s)...), g.flushText(s)...)
+		return append(out, s.Result(g.failure, true)...)
+	case "end":
+		out = append(append(out, g.flushThinking(s)...), g.flushText(s)...)
+		if session := stringValue(raw["sessionId"]); session != "" {
+			s.SessionID = session
+		}
+		usage, _ := raw["usage"].(map[string]any)
+		s.SetUsage(int64Value(usage["input_tokens"]), int64Value(usage["output_tokens"]), int64Value(usage["cache_read_input_tokens"]), int64Value(usage["cache_creation_input_tokens"]), int64Value(usage["reasoning_tokens"]))
+		reason := stringValue(raw["stopReason"])
+		failed := g.failure != "" || (reason != "" && reason != "end_turn")
+		text := ""
+		if failed {
+			if text = g.failure; text == "" {
+				text = "Grok 运行结束：" + reason
 			}
 		}
 		return append(out, s.Result(text, failed)...)

@@ -48,6 +48,8 @@ var defaultProviders = []providerSpec{
 	// The official ZCode has no npm package and its --help omits
 	// --output-format, so compatibility is probed with the flags we pass.
 	{Kind: "zcode", Binary: "zcode", VersionFlags: []string{"--output-format", "stream-json", "--mode", "yolo"}},
+	// Grok reuses the machine owner's `grok login` or the user's XAI_API_KEY.
+	{Kind: "grok", Binary: "grok", Update: "update"},
 }
 
 // terminalProviderKind is the built-in remote-terminal capability: the
@@ -71,6 +73,8 @@ func extraSearchPaths() []string {
 	paths := []string{
 		filepath.Join(home, ".local", "bin"),
 		filepath.Join(home, "bin"),
+		// The official Grok installer links its CLI here.
+		filepath.Join(home, ".grok", "bin"),
 		"/opt/homebrew/bin",
 		"/usr/local/bin",
 	}

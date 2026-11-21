@@ -27,6 +27,7 @@ const (
 	AgentCLIPi          = "pi"
 	AgentCLIDeepSeek    = "dsh"
 	AgentCLIZCode       = "zcode"
+	AgentCLIGrok        = "grok"
 )
 
 // AgentCLIKinds is the display order of the agent CLIs.
@@ -67,8 +68,9 @@ func AgentCLINeedsBaseURL(kind, protocol string) bool {
 // can, DeepSeek Harness on the official endpoint.
 func agentCLIModelOptional(kind, baseURL string) bool {
 	switch kind {
-	case AgentCLICursor, AgentCLIZCode:
-		// ZCode resolves an unset model itself (applyZCodeCredential).
+	case AgentCLICursor, AgentCLIZCode, AgentCLIGrok:
+		// ZCode resolves an unset model itself (applyZCodeCredential); Grok
+		// uses the account's default model.
 		return true
 	case AgentCLIAntigravity, AgentCLIDeepSeek:
 		return baseURL == ""
@@ -106,7 +108,7 @@ var agentCLIHostEnv = append([]string{
 	"DEEPSEEK_API_KEY", "DSH_HOME", "MOONSHOT_API_KEY", "KIMI_API_KEY", "KIMI_BASE_URL", "KIMI_CODE_HOME",
 	"KIMI_MODEL_NAME", "KIMI_MODEL_API_KEY", "KIMI_MODEL_BASE_URL", "KIMI_MODEL_PROVIDER_TYPE", kimiThinkingEffortEnv,
 	"OPENCODE_CONFIG", "OPENCODE_CONFIG_CONTENT", "OPENCODE_CONFIG_DIR", "PI_CODING_AGENT_DIR",
-	"ZCODE_DATA_BASE_DIR", zcodePersonalFileEnv,
+	"ZCODE_DATA_BASE_DIR", zcodePersonalFileEnv, "XAI_API_KEY", "GROK_HOME",
 }, zcodeHostEnv...)
 
 // agentCLIConfigPaths are the HOME-relative files an agent CLI reads its MCP
@@ -119,6 +121,7 @@ var agentCLIMCPPaths = map[string]string{
 	AgentCLIPi:          ".pi/agent/mcp.json",
 	AgentCLIDeepSeek:    ".dsh/agentflow-mcp.json",
 	AgentCLIZCode:       zcodeConfigPath,
+	AgentCLIGrok:        ".grok/config.toml",
 }
 
 // AgentCLIMCPOptions shapes the MCP configuration of one invocation.
@@ -188,6 +191,9 @@ func WriteAgentCLIMCPConfig(kind string, home AgentCLIHome, entries map[string]a
 			}
 		}
 	}
+	if kind == AgentCLIGrok {
+		return writeAgentCLIFile(home, rel, grokMCPConfig(ids, servers))
+	}
 	var document any
 	switch kind {
 	case AgentCLIOpenCode:
@@ -223,6 +229,61 @@ func WriteAgentCLIMCPConfig(kind string, home AgentCLIHome, entries map[string]a
 		}
 	}
 	return writeAgentCLIFile(home, rel, data)
+}
+
+// grokMCPConfig renders the servers as Grok's ~/.grok/config.toml
+// [mcp_servers.<id>] tables. JSON string and array encodings are valid TOML
+// basic strings and arrays, so values are emitted with json.Marshal.
+func grokMCPConfig(ids []string, servers map[string]any) []byte {
+	var b strings.Builder
+	tomlValue := func(v any) string {
+		data, _ := json.Marshal(v)
+		return string(data)
+	}
+	table := func(path string, values map[string]any) {
+		keys := make([]string, 0, len(values))
+		for key := range values {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		fmt.Fprintf(&b, "[%s]\n", path)
+		for _, key := range keys {
+			fmt.Fprintf(&b, "%s = %s\n", tomlValue(key), tomlValue(values[key]))
+		}
+		b.WriteString("\n")
+	}
+	for _, id := range ids {
+		server, _ := servers[id].(map[string]any)
+		if server == nil {
+			continue
+		}
+		path := "mcp_servers." + tomlValue(id)
+		top := map[string]any{"enabled": true}
+		nested := map[string]map[string]any{}
+		for key, value := range server {
+			switch key {
+			case "headers", "env":
+				if m, ok := value.(map[string]string); ok {
+					values := map[string]any{}
+					for k, v := range m {
+						values[k] = v
+					}
+					nested[key] = values
+				} else if m, ok := value.(map[string]any); ok {
+					nested[key] = m
+				}
+			default:
+				top[key] = value
+			}
+		}
+		table(path, top)
+		for _, key := range []string{"env", "headers"} {
+			if len(nested[key]) > 0 {
+				table(path+"."+key, nested[key])
+			}
+		}
+	}
+	return []byte(b.String())
 }
 
 // openCodeMCPServer renders one MCP entry for OpenCode: a remote server for
@@ -379,7 +440,7 @@ func ApplyAgentCLICredential(kind string, cred ProviderCredential, options Agent
 	if key == "" {
 		return nil, nil, fmt.Errorf("需求责任人未配置 %s API Key，请在个人配置中配置", AgentCLILabel(kind))
 	}
-	if kind == AgentCLIAntigravity {
+	if kind == AgentCLIAntigravity || kind == AgentCLIGrok {
 		// A crashed account-login invocation may leave a credential copy.
 		// API-key execution must not retain or inherit that account.
 		login, _ := runnerLoginSpec(kind)
@@ -527,6 +588,8 @@ func ApplyAgentCLICredential(kind string, cred ProviderCredential, options Agent
 		return applyDeepSeekCredential(home, homeEnv, key, baseURL, protocol, model, strings.TrimSpace(options.Effort), options.ImageInput, argv)
 	case AgentCLIZCode:
 		return applyZCodeCredential(home, homeEnv, key, baseURL, protocol, model, strings.TrimSpace(options.Effort), argv)
+	case AgentCLIGrok:
+		env["XAI_API_KEY"] = key
 	default:
 		return nil, nil, fmt.Errorf("unknown agent CLI %q", kind)
 	}
@@ -662,6 +725,8 @@ func AgentCLILabel(kind string) string {
 		return "DeepSeek Harness"
 	case AgentCLIZCode:
 		return "ZCode"
+	case AgentCLIGrok:
+		return "Grok"
 	}
 	return kind
 }

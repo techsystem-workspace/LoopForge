@@ -105,7 +105,12 @@ func InstallConversationApproval(root, provider string, command CommandSpec) (Co
 		if err := writeAgentCLIFile(home, ".gemini/config/hooks.json", data); err != nil {
 			return command, err
 		}
-
+	case AgentCLIGrok:
+		// Grok loads every hook file in $GROK_HOME/hooks; the schema is Claude's.
+		data, _ := json.Marshal(map[string]any{"hooks": hooks})
+		if err := writeAgentCLIFile(home, ".grok/hooks/loopforge-approval.json", data); err != nil {
+			return command, err
+		}
 	case AgentCLIDeepSeek:
 		path := filepath.Join(root, "dsh-approval.mjs")
 		if err := os.WriteFile(path, []byte(conversationDSHApproval), 0600); err != nil {

@@ -176,6 +176,17 @@ func executorModelCatalogs(kimiBaseURL string) map[string]executorModelCatalog {
 		"pi":    {CustomModel: true, Efforts: effortOptions(domain.ExecutorEffortLevels["pi"])},
 		"dsh":   {CustomModel: true, Efforts: effortOptions(domain.ExecutorEffortLevels["dsh"])},
 		"zcode": {CustomModel: true, Efforts: effortOptions(domain.ExecutorEffortLevels["zcode"])},
+		// `grok models` on a grok.com login; an empty model uses the account default.
+		"grok": {
+			CustomModel: true,
+			Models: []executorModelInfo{
+				{ID: "grok-4.7", Name: "Grok 4.7"},
+				{ID: "grok-4.7-build-fast", Name: "Grok 4.7 Build Fast"},
+				{ID: "grok-4.6", Name: "Grok 4.6"},
+				{ID: "grok-4.5", Name: "Grok 4.5"},
+			},
+			Efforts: effortOptions(domain.ExecutorEffortLevels["grok"]),
+		},
 	}
 	for engine, catalog := range catalogs {
 		modelEngine := engine

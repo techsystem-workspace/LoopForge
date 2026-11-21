@@ -28,6 +28,8 @@ func runnerLoginSpec(provider string) (conversationLoginSpec, bool) {
 		return conversationLoginSpec{"Claude Code", ".claude", ".credentials.json", "CLAUDE_CONFIG_DIR", BindClaudeCode}, true
 	case AgentCLIAntigravity:
 		return conversationLoginSpec{"Antigravity", ".gemini/antigravity-cli", "antigravity-oauth-token", "", BindAgentCLI}, true
+	case AgentCLIGrok:
+		return conversationLoginSpec{"Grok", ".grok", grokAuthFile, "", BindAgentCLI}, true
 	default:
 		return conversationLoginSpec{}, false
 	}
@@ -136,10 +138,14 @@ func prepareRunnerLogin(home AgentCLIHome, login conversationLoginSpec, enabled 
 		}
 	}
 	var data []byte
+	// keepAntigravity is the provider's verified write-back of a sandbox refresh.
 	var keepAntigravity func([]byte) error
-	if login.binding == BindAgentCLI {
+	switch {
+	case login.label == "Grok":
+		data, keepAntigravity, err = readGrokRunnerLogin()
+	case login.binding == BindAgentCLI:
 		data, keepAntigravity, err = readAntigravityRunnerLogin()
-	} else {
+	default:
 		data, err = readRunnerLoginFile(configDir, login.file)
 	}
 	if err != nil {
@@ -192,7 +198,7 @@ func prepareRunnerLogin(home AgentCLIHome, login conversationLoginSpec, enabled 
 			return err
 		}
 		defer dir.Close()
-		// Only Antigravity's verified, stable-refresh-token flow accepts sandbox
+		// Only the verified Antigravity and Grok refresh flows accept sandbox
 		// updates. Other edited files are never promoted to host credentials.
 		var keepErr error
 		if keepAntigravity != nil {
@@ -216,6 +222,9 @@ func prepareRunnerLogin(home AgentCLIHome, login conversationLoginSpec, enabled 
 		env := map[string]string{"SSH_CONNECTION": "127.0.0.1 0 127.0.0.1 0"}
 		for _, key := range agentCLIHostEnv {
 			env[key] = ""
+		}
+		if login.label == "Grok" {
+			return cleanup, env, nil
 		}
 		// A prior API-key turn may have selected the direct Gemini API.
 		if err := target.WriteFile("settings.json", []byte("{}"), 0600); err != nil {

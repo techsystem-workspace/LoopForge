@@ -240,6 +240,22 @@ func AgentCLICommand(kind string, o AgentCLICommandOptions) CommandSpec {
 			argv = append(argv, "--session-id", resume)
 		}
 		argv = append(append(argv, extra...), prompt)
+	case AgentCLIGrok:
+		// --no-memory keeps Grok's cross-session memory out of unattended runs.
+		argv = []string{binary, "--output-format", "streaming-json", "--permission-mode", "bypassPermissions", "--no-memory"}
+		if readOnly {
+			argv = append(argv, "--disallowed-tools", grokChatDisallowedTools, "--disable-web-search")
+		}
+		if model != "" {
+			argv = append(argv, "-m", model)
+		}
+		if effort != "" {
+			argv = append(argv, "--reasoning-effort", effort)
+		}
+		if resume != "" {
+			argv = append(argv, "-r", resume)
+		}
+		argv = append(append(argv, extra...), "-p", prompt)
 	case AgentCLIZCode:
 		disallowed := zcodeSOPDisallowedTools
 		if readOnly {
@@ -286,6 +302,10 @@ func agyModelForEffort(model, effort string) string {
 	}
 	return model
 }
+
+// grokChatDisallowedTools are Grok's built-in tools that act outside the
+// chat's MCP gateway: shell, file edits, subagents, schedules and media.
+const grokChatDisallowedTools = "run_terminal_command,search_replace,write,kill_command_or_subagent,spawn_subagent,scheduler_create,scheduler_delete,workflow,image_gen,image_edit,image_to_video,reference_to_video"
 
 // kimiChatDisallowedTools are Kimi Code's tools that act outside the chat's
 // MCP gateway or spawn further agents.

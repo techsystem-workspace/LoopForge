@@ -270,6 +270,9 @@ func dockerCLISetup(provider, binary string) (string, error) {
 			// The official CLI is shipped with ZCode or built from its source;
 			// it has no standalone npm package. Never install a namesake.
 			installer = "echo 'ZCode CLI 未安装；请在工作区镜像中预装官方 ZCode CLI 并将 zcode 加入 PATH' >&2; exit 1"
+		case AgentCLIGrok:
+			// Grok ships as a native binary from its own installer; never fetch a namesake.
+			installer = "echo 'Grok CLI 未安装；请在工作区镜像中预装官方 Grok CLI 并将 grok 加入 PATH' >&2; exit 1"
 		case AgentCLICursor:
 			installer = conversationScriptInstaller(cursorInstallerURL)
 		case AgentCLIAntigravity:
